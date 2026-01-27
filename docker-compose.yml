@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: gatherly_postgres
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: gatherly_user
+      POSTGRES_PASSWORD: gatherly_password
+      POSTGRES_DB: gatherly
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gatherly_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gatherly_user -d gatherly']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gatherly_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - gatherly_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (Optional - can be run locally with npm run start:dev)
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: gatherly_backend
+  #   restart: unless-stopped
+  #   ports:
+  #     - '5000:5000'
+  #   environment:
+  #     DATABASE_URL: postgresql://gatherly_user:gatherly_password@postgres:5432/gatherly?schema=public
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     NODE_ENV: production
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - gatherly_network
+  #   volumes:
+  #     - ./backend:/app
+  #     - /app/node_modules
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  gatherly_network:
+    driver: bridge

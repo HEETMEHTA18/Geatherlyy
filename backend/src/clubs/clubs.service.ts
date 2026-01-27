@@ -1,0 +1,616 @@
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../cache/redis.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { Club, Prisma, UserRole } from '@prisma/client';
+
+@Injectable()
+export class ClubsService {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+    private cloudinary: CloudinaryService,
+  ) {}
+
+  async create(
+    data: any,
+    creatorId?: number,
+    files?: { clubPhoto?: Express.Multer.File[]; eventPhotos?: Express.Multer.File[] },
+  ): Promise<Club> {
+    // Handle both 'name' and 'clubName' from frontend
+    const clubName = data.name || data.clubName;
+    
+    if (!clubName) {
+      throw new Error('Club name is required');
+    }
+
+    // Check if club with this name already exists
+    const existingClub = await this.prisma.club.findUnique({
+      where: { name: clubName },
+    });
+
+    if (existingClub) {
+      throw new ForbiddenException(`A club with the name "${clubName}" already exists. Please choose a different name.`);
+    }
+
+    // Upload club photo if provided
+    let imageUrl: string | undefined;
+    if (files?.clubPhoto && files.clubPhoto.length > 0) {
+      const result = await this.cloudinary.uploadImage(files.clubPhoto[0], 'gatherly/clubs');
+      imageUrl = result.secure_url;
+    }
+
+    // Upload event photos if provided
+    let eventPhotos: string[] = [];
+    if (files?.eventPhotos && files.eventPhotos.length > 0) {
+      const results = await this.cloudinary.uploadMultipleImages(files.eventPhotos, 'gatherly/club-events');
+      eventPhotos = results.map(result => result.secure_url);
+    }
+
+    // Get creator info to check role
+    let approvalStatus: any = 'PENDING';
+    if (creatorId) {
+      const creator = await this.prisma.user.findUnique({
+        where: { id: creatorId },
+        select: { role: true },
+      });
+      // Admins can auto-approve their clubs
+      if (creator?.role === UserRole.ADMIN) {
+        approvalStatus = 'APPROVED';
+      }
+    }
+
+    const clubData: Prisma.ClubCreateInput = {
+      name: clubName,
+      description: data.description,
+      category: data.category || 'Other',
+      approvalStatus: approvalStatus,
+      imageUrl: imageUrl,
+      eventPhotos: eventPhotos,
+      creator: creatorId ? {
+        connect: { id: creatorId }
+      } : undefined,
+    };
+
+    const club = await this.prisma.club.create({
+      data: clubData,
+      include: {
+        coordinators: {
+          include: {
+            user: true,
+          },
+        },
+        members: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    // Invalidate clubs cache (non-blocking)
+    this.redis.del('clubs:all').catch(() => {});
+
+    return club;
+  }
+
+  async getCategories(): Promise<string[]> {
+    const clubs = await this.prisma.club.findMany({
+      select: {
+        category: true,
+      },
+      distinct: ['category'],
+      orderBy: {
+        category: 'asc',
+      },
+    });
+    
+    return clubs.map(club => club.category).filter(Boolean);
+  }
+
+  async findAll(filters?: {
+    category?: string;
+    search?: string;
+    skip?: number;
+    take?: number;
+  }): Promise<Club[]> {
+    // Disable caching for now
+    // const cacheKey = `clubs:all:${JSON.stringify(filters || {})}`;
+    // const cached = await this.redis.getClubData(cacheKey);
+    // if (cached) {
+    //   return cached as Club[];
+    // }
+
+    const where: Prisma.ClubWhereInput = {};
+
+    if (filters?.category) {
+      where.category = filters.category;
+    }
+
+    if (filters?.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const clubs = await this.prisma.club.findMany({
+      where,
+      skip: filters?.skip,
+      take: filters?.take || 20,
+      include: {
+        coordinators: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+            activities: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Disable caching for now
+    // await this.redis.setClubData(cacheKey, clubs);
+
+    return clubs;
+  }
+
+  async findUserClubs(userId: number): Promise<Club[]> {
+    const clubs = await this.prisma.club.findMany({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      include: {
+        coordinators: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+            activities: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return clubs;
+  }
+
+  async findManagedByUser(userId: number): Promise<Club[]> {
+    const clubs = await this.prisma.club.findMany({
+      where: {
+        OR: [
+          {
+            coordinators: {
+              some: {
+                userId: userId,
+              },
+            },
+          },
+          {
+            creator: {
+              id: userId,
+            },
+          },
+        ],
+      },
+      include: {
+        coordinators: {
+          include: {
+            user: true,
+          },
+        },
+        members: true,
+        activities: {
+          orderBy: {
+            startDate: 'desc',
+          },
+          take: 5,
+        },
+        _count: {
+          select: {
+            members: true,
+            activities: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return clubs;
+  }
+
+  async findById(id: number): Promise<Club> {
+    // Disable caching for now
+    // const cacheKey = `club:${id}`;
+    // const cached = await this.redis.getClubData(cacheKey);
+    // if (cached) {
+    //   return cached as Club;
+    // }
+
+    const club = await this.prisma.club.findUnique({
+      where: { id },
+      include: {
+        coordinators: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                role: true,
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: {
+            joinedAt: 'desc',
+          },
+        },
+        activities: {
+          orderBy: {
+            startDate: 'desc',
+          },
+          take: 10,
+        },
+        _count: {
+          select: {
+            members: true,
+            activities: true,
+          },
+        },
+      },
+    });
+
+    if (!club) {
+      throw new NotFoundException(`Club with ID ${id} not found`);
+    }
+
+    // Disable caching for now
+    // await this.redis.setClubData(cacheKey, club);
+
+    return club;
+  }
+
+  async update(id: number, data: Prisma.ClubUpdateInput): Promise<Club> {
+    const club = await this.prisma.club.update({
+      where: { id },
+      data,
+      include: {
+        coordinators: {
+          include: {
+            user: true,
+          },
+        },
+        members: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    // Invalidate cache
+    await this.redis.del(`club:${id}`);
+    await this.redis.del('clubs:all');
+
+    return club;
+  }
+
+  async delete(id: number): Promise<void> {
+    await this.prisma.club.delete({
+      where: { id },
+    });
+
+    // Invalidate cache
+    await this.redis.del(`club:${id}`);
+    await this.redis.del('clubs:all');
+  }
+
+  async joinClub(clubId: number, userId: number): Promise<void> {
+    // Get club details with current member count
+    const club = await this.prisma.club.findUnique({
+      where: { id: clubId },
+      include: {
+        _count: {
+          select: { members: true }
+        }
+      }
+    });
+
+    if (!club) {
+      throw new NotFoundException('Club not found');
+    }
+
+    // Check if club has reached max members limit
+    if (club._count.members >= club.maxMembers) {
+      throw new ForbiddenException('This club has reached its maximum member capacity');
+    }
+
+    // Check if already a member
+    const existingMember = await this.prisma.clubMember.findUnique({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    if (existingMember) {
+      throw new ForbiddenException('Already a member of this club');
+    }
+
+    await this.prisma.clubMember.create({
+      data: {
+        clubId,
+        userId,
+      },
+    });
+
+    // Update member count
+    await this.prisma.club.update({
+      where: { id: clubId },
+      data: { memberCount: { increment: 1 } }
+    });
+
+    // Invalidate cache
+    await this.redis.del(`club:${clubId}`);
+  }
+
+  async leaveClub(clubId: number, userId: number): Promise<void> {
+    // Check if coordinator
+    const isCoordinator = await this.prisma.clubCoordinator.findUnique({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    if (isCoordinator) {
+      throw new ForbiddenException('Coordinators cannot leave the club directly');
+    }
+
+    await this.prisma.clubMember.delete({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    // Update member count
+    await this.prisma.club.update({
+      where: { id: clubId },
+      data: { memberCount: { decrement: 1 } }
+    });
+
+    // Invalidate cache
+    await this.redis.del(`club:${clubId}`);
+  }
+
+  async addCoordinator(clubId: number, userId: number, addedBy: number): Promise<void> {
+    // Verify the user adding coordinator has permission (Faculty or Admin)
+    const addingUser = await this.prisma.user.findUnique({
+      where: { id: addedBy },
+    });
+
+    if (!addingUser || !([UserRole.FACULTY, UserRole.ADMIN] as UserRole[]).includes(addingUser.role)) {
+      throw new ForbiddenException('Only faculty or admin can add coordinators');
+    }
+
+    // Check if user is already a coordinator
+    const existingCoordinator = await this.prisma.clubCoordinator.findUnique({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    if (existingCoordinator) {
+      throw new ForbiddenException('User is already a coordinator');
+    }
+
+    await this.prisma.clubCoordinator.create({
+      data: {
+        clubId,
+        userId,
+      },
+    });
+
+    // Invalidate cache
+    await this.redis.del(`club:${clubId}`);
+  }
+
+  async removeCoordinator(clubId: number, userId: number, removedBy: number): Promise<void> {
+    // Verify permission
+    const removingUser = await this.prisma.user.findUnique({
+      where: { id: removedBy },
+    });
+
+    if (!removingUser || !([UserRole.FACULTY, UserRole.ADMIN] as UserRole[]).includes(removingUser.role)) {
+      throw new ForbiddenException('Only faculty or admin can remove coordinators');
+    }
+
+    await this.prisma.clubCoordinator.delete({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    // Invalidate cache
+    await this.redis.del(`club:${clubId}`);
+  }
+
+  async applyAsCoordinator(clubId: number, userId: number, reason: string): Promise<any> {
+    // Check if club exists
+    const club = await this.findById(clubId);
+
+    // Check if user is a member
+    const membership = await this.prisma.clubMember.findUnique({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('You must be a member to apply as coordinator');
+    }
+
+    // Check if already a coordinator
+    const existingCoordinator = await this.prisma.clubCoordinator.findUnique({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    if (existingCoordinator) {
+      throw new ForbiddenException('You are already a coordinator');
+    }
+
+    // Check if there's already a pending application
+    const pendingRequest = await this.prisma.approvalRequest.findFirst({
+      where: {
+        userId,
+        clubId,
+        requestedRole: 'COORDINATOR',
+        status: 'PENDING',
+      },
+    });
+
+    if (pendingRequest) {
+      throw new ForbiddenException('You already have a pending coordinator application');
+    }
+
+    // Create approval request
+    const approvalRequest = await this.prisma.approvalRequest.create({
+      data: {
+        userId,
+        clubId,
+        requestedRole: 'COORDINATOR',
+        reason,
+        status: 'PENDING',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        club: {
+          select: {
+            id: true,
+            name: true,
+            imageUrl: true,
+          },
+        },
+      },
+    });
+
+    return approvalRequest;
+  }
+
+  async getClubStats(clubId: number): Promise<any> {
+    const club = await this.findById(clubId);
+
+    const stats = await this.prisma.$transaction([
+      // Total members
+      this.prisma.clubMember.count({
+        where: { clubId },
+      }),
+      // Total activities
+      this.prisma.activity.count({
+        where: { clubId },
+      }),
+      // Upcoming activities
+      this.prisma.activity.count({
+        where: {
+          clubId,
+          startDate: {
+            gte: new Date(),
+          },
+        },
+      }),
+      // Total quizzes
+      this.prisma.quiz.count({
+        where: { clubId },
+      }),
+    ]);
+
+    return {
+      club: {
+        id: club.id,
+        name: club.name,
+        category: club.category,
+      },
+      totalMembers: stats[0],
+      totalActivities: stats[1],
+      upcomingActivities: stats[2],
+      totalQuizzes: stats[3],
+    };
+  }
+}
+
+
+
