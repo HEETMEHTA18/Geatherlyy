@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  Res,
   HttpCode,
   HttpStatus,
   ParseIntPipe,
@@ -124,8 +125,9 @@ export class ClubsController {
   async updateClub(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateData: any,
+    @Request() req,
   ) {
-    return this.clubsService.update(id, updateData);
+    return this.clubsService.update(id, updateData, req.user.id);
   }
 
   @Delete(':id')
@@ -203,6 +205,20 @@ export class ClubsController {
     @Request() req,
   ) {
     await this.clubsService.removeCoordinator(clubId, userId, req.user.id);
+  }
+
+  @Get(':id/members/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.COORDINATOR, UserRole.FACULTY, UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export club members to Excel' })
+  @ApiResponse({ status: 200, description: 'Excel file generated successfully' })
+  async exportMembers(@Param('id', ParseIntPipe) id: number, @Request() req, @Res() res) {
+    const buffer = await this.clubsService.exportMembersToExcel(id, req.user.id);
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=club-members-${id}.xlsx`);
+    res.send(buffer);
   }
 }
 

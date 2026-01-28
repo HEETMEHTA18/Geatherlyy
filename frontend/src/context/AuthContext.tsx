@@ -29,6 +29,7 @@ interface AuthState {
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   initialize: () => Promise<void>;
+  getToken: () => string | null;
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
@@ -99,6 +100,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.removeItem('token');
       set({ isLoading: false, initialized: true });
     }
+  },
+  getToken: () => {
+    return localStorage.getItem('token');
   },
 }));
 

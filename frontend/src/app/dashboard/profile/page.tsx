@@ -5,6 +5,23 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { PersonIcon, EnvelopeClosedIcon, MobileIcon, BackpackIcon, IdCardIcon } from '@radix-ui/react-icons';
 
+interface QuizAttempt {
+  id: number;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  timeTaken: number;
+  attemptedAt: string;
+  quiz: {
+    id: number;
+    title: string;
+    club: {
+      id: number;
+      name: string;
+    };
+  };
+}
+
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore();
   const router = useRouter();
@@ -14,6 +31,8 @@ export default function ProfilePage() {
     quizzesCompleted: 0,
     averageScore: 0,
   });
+  const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -51,7 +70,68 @@ export default function ProfilePage() {
           console.error('Failed to fetch stats:', error);
         }
       };
+
+      // Fetch quiz history
+      const fetchQuizHistory = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          // Fetch all quiz attempts for the user
+          const response = await fetch(`http://localhost:5000/api/quizzes`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (response.ok) {
+            const quizzes = await response.json();
+            // For each quiz, check if user has attempted it
+            const attempts: QuizAttempt[] = [];
+            
+            for (const quiz of quizzes) {
+              try {
+                const attemptResponse = await fetch(
+                  `http://localhost:5000/api/quizzes/${quiz.id}/my-attempt`,
+                  {
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                    },
+                  }
+                );
+                
+                if (attemptResponse.ok) {
+                  const attempt = await attemptResponse.json();
+                  if (attempt) {
+                    attempts.push({
+                      ...attempt,
+                      quiz: {
+                        id: quiz.id,
+                        title: quiz.title,
+                        club: quiz.club,
+                      },
+                    });
+                  }
+                }
+              } catch (err) {
+                // Skip if no attempt found
+              }
+            }
+            
+            // Sort by most recent first
+            attempts.sort((a, b) => 
+              new Date(b.attemptedAt).getTime() - new Date(a.attemptedAt).getTime()
+            );
+            
+            setQuizHistory(attempts);
+          }
+        } catch (error) {
+          console.error('Failed to fetch quiz history:', error);
+        } finally {
+          setLoadingHistory(false);
+        }
+      };
+
       fetchStats();
+      fetchQuizHistory();
     }
   }, [user]);
 
@@ -110,6 +190,21 @@ export default function ProfilePage() {
       default:
         return status;
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -294,6 +389,60 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-text font-medium">Average Score</p>
             </div>
           </div>
+        </div>
+
+        {/* Quiz History */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-border p-6 shadow-sm">
+          <h3 className="text-xl font-bold mb-6">📝 Quiz History</h3>
+          
+          {loadingHistory ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="text-muted-text mt-4">Loading quiz history...</p>
+            </div>
+          ) : quizHistory.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📚</div>
+              <p className="text-muted-text">No quizzes attempted yet</p>
+              <p className="text-sm text-muted-text mt-2">Join a club and start taking quizzes!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {quizHistory.map((attempt) => (
+                <div
+                  key={attempt.id}
+                  className="p-4 border border-border rounded-lg hover:bg-muted-bg transition-colors cursor-pointer"
+                  onClick={() => router.push(`/dashboard/clubs/${attempt.quiz.club.id}`)}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-lg">{attempt.quiz.title}</h4>
+                      <p className="text-sm text-muted-text">{attempt.quiz.club.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-2xl font-bold ${
+                        attempt.percentage >= 80 ? 'text-green-600' :
+                        attempt.percentage >= 60 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {Math.round(attempt.percentage)}%
+                      </div>
+                      <p className="text-xs text-muted-text">
+                        {attempt.score}/{attempt.totalMarks} marks
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-text">
+                    <span>⏱️ {formatTime(attempt.timeTaken)}</span>
+                    <span>📅 {formatDate(attempt.attemptedAt)}</span>
+                    {attempt.percentage >= 80 && <span className="text-green-600 font-medium">🏆 Excellent!</span>}
+                    {attempt.percentage >= 60 && attempt.percentage < 80 && <span className="text-yellow-600 font-medium">👍 Good</span>}
+                    {attempt.percentage < 60 && <span className="text-red-600 font-medium">📖 Keep Learning</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

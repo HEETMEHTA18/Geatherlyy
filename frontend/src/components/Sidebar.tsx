@@ -55,7 +55,7 @@ export function Sidebar() {
   const menuItems: { label: string; href: string; roles: string[]; icon: React.ReactNode }[] = [
     { label: 'Dashboard', href: '/dashboard', roles: ['member', 'coordinator', 'faculty', 'admin'], icon: <DashboardIcon className="w-5 h-5" /> },
     { label: 'Discover', href: '/dashboard/discover', roles: ['member', 'coordinator', 'faculty', 'admin'], icon: <MagnifyingGlassIcon className="w-5 h-5" /> },
-    { label: 'Quizzes', href: '/dashboard/quizzes', roles: ['coordinator', 'admin'], icon: <FileTextIcon className="w-5 h-5" /> },
+    { label: 'Quizzes', href: '/dashboard/quizzes', roles: ['member', 'coordinator', 'faculty', 'admin'], icon: <FileTextIcon className="w-5 h-5" /> },
     { label: 'Leaderboard', href: '/dashboard/leaderboard', roles: ['member', 'coordinator', 'faculty', 'admin'], icon: <TrophyIcon className="w-5 h-5" /> },
     { label: 'My Hub', href: '/dashboard/coordinators', roles: ['coordinator', 'admin'], icon: <RocketIcon className="w-5 h-5" /> },
     { label: 'Create Club', href: '/dashboard/create-club', roles: ['faculty', 'admin'], icon: <PlusCircledIcon className="w-5 h-5" /> },

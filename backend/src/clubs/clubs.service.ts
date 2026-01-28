@@ -316,7 +316,27 @@ export class ClubsService {
     return club;
   }
 
-  async update(id: number, data: Prisma.ClubUpdateInput): Promise<Club> {
+  async update(id: number, data: Prisma.ClubUpdateInput, userId?: number): Promise<Club> {
+    // If userId provided, verify coordinator permission
+    if (userId) {
+      const isCoordinator = await this.prisma.clubCoordinator.findUnique({
+        where: {
+          clubId_userId: {
+            clubId: id,
+            userId,
+          },
+        },
+      });
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!isCoordinator && user?.role !== UserRole.ADMIN && user?.role !== UserRole.FACULTY) {
+        throw new ForbiddenException('Only coordinators, faculty, or admins can update club information');
+      }
+    }
+
     const club = await this.prisma.club.update({
       where: { id },
       data,
@@ -596,6 +616,38 @@ export class ClubsService {
       this.prisma.quiz.count({
         where: { clubId },
       }),
+      // Total quiz attempts across all quizzes
+      this.prisma.quizAttempt.count({
+        where: {
+          quiz: {
+            clubId,
+          },
+        },
+      }),
+      // Recent comments count (last 7 days)
+      this.prisma.comment.count({
+        where: {
+          clubId,
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+      // Recent member joins (last 10)
+      this.prisma.clubMember.findMany({
+        where: { clubId },
+        orderBy: { joinedAt: 'desc' },
+        take: 10,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+        },
+      }),
     ]);
 
     return {
@@ -608,7 +660,87 @@ export class ClubsService {
       totalActivities: stats[1],
       upcomingActivities: stats[2],
       totalQuizzes: stats[3],
+      totalQuizAttempts: stats[4],
+      recentCommentsCount: stats[5],
+      recentMembers: stats[6],
     };
+  }
+
+  async exportMembersToExcel(clubId: number, userId: number): Promise<Buffer> {
+    // Verify user is coordinator, faculty, or admin
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const isCoordinator = await this.prisma.clubCoordinator.findUnique({
+      where: {
+        clubId_userId: {
+          clubId,
+          userId,
+        },
+      },
+    });
+
+    if (!isCoordinator && user?.role !== UserRole.ADMIN && user?.role !== UserRole.FACULTY) {
+      throw new ForbiddenException('Only coordinators, faculty, or admins can export member data');
+    }
+
+    const members = await this.prisma.clubMember.findMany({
+      where: { clubId },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            universityId: true,
+            department: true,
+            year: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    // Create Excel workbook using exceljs
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Members');
+
+    // Set column headers
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'University ID', key: 'universityId', width: 15 },
+      { header: 'Department', key: 'department', width: 20 },
+      { header: 'Year', key: 'year', width: 10 },
+      { header: 'Phone', key: 'phone', width: 15 },
+      { header: 'Joined Date', key: 'joinedAt', width: 15 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4F81BD' },
+    };
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+    // Add member data
+    members.forEach((member) => {
+      worksheet.addRow({
+        name: member.user.name,
+        email: member.user.email,
+        universityId: member.user.universityId || 'N/A',
+        department: member.user.department,
+        year: member.user.year || 'N/A',
+        phone: member.user.phone || 'N/A',
+        joinedAt: member.joinedAt.toLocaleDateString(),
+      });
+    });
+
+    return await workbook.xlsx.writeBuffer() as Buffer;
   }
 }
 

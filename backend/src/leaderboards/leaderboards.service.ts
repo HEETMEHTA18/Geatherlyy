@@ -32,10 +32,10 @@ export class LeaderboardsService {
         COUNT(DISTINCT cm.id) as clubs_joined,
         COUNT(DISTINCT qa.id) as quizzes_completed,
         COALESCE(AVG(qa.percentage), 0) as avg_percentage
-      FROM "User" u
-      LEFT JOIN "QuizAttempt" qa ON u.id = qa."userId" AND qa."attemptedAt" IS NOT NULL
-      LEFT JOIN "ClubMember" cm ON u.id = cm."userId"
-      WHERE u.role IN ('STUDENT', 'COORDINATOR')
+      FROM "users" u
+      LEFT JOIN "quiz_attempts" qa ON u.id = qa."userId" AND qa."attemptedAt" IS NOT NULL
+      LEFT JOIN "club_members" cm ON u.id = cm."userId"
+      WHERE u.role IN ('MEMBER', 'COORDINATOR')
       GROUP BY u.id
       ORDER BY 
         total_score DESC, 
@@ -84,12 +84,12 @@ export class LeaderboardsService {
         COUNT(DISTINCT qa.id) as quizzes_completed,
         COALESCE(AVG(qa.percentage), 0) as avg_percentage,
         cm."joinedAt" as joined_at
-      FROM "User" u
-      INNER JOIN "ClubMember" cm ON u.id = cm."userId" AND cm."clubId" = ${clubId}
-      LEFT JOIN "QuizAttempt" qa ON u.id = qa."userId" 
+      FROM "users" u
+      INNER JOIN "club_members" cm ON u.id = cm."userId" AND cm."clubId" = ${clubId}
+      LEFT JOIN "quiz_attempts" qa ON u.id = qa."userId" 
         AND qa."attemptedAt" IS NOT NULL
         AND qa."quizId" IN (
-          SELECT id FROM "Quiz" WHERE "clubId" = ${clubId}
+          SELECT id FROM "quizzes" WHERE "clubId" = ${clubId}
         )
       GROUP BY u.id, cm."joinedAt"
       ORDER BY 

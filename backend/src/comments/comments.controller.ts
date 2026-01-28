@@ -47,12 +47,14 @@ export class CommentsController {
   }
 
   @Get('club/:clubId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.COORDINATOR, UserRole.FACULTY, UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get comments for a specific club' })
+  @ApiOperation({ summary: 'Get comments for a specific club (Club members only)' })
   @ApiResponse({ status: 200, description: 'Returns club comments' })
-  async getClubComments(@Param('clubId', ParseIntPipe) clubId: number) {
+  async getClubComments(
+    @Param('clubId', ParseIntPipe) clubId: number,
+    @Request() req,
+  ) {
     return this.commentsService.getClubComments(clubId);
   }
 

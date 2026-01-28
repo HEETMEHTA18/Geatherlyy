@@ -15,6 +15,7 @@ export default function QuizTakePage({ params }: { params: { id: string } }) {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -102,6 +103,16 @@ export default function QuizTakePage({ params }: { params: { id: string } }) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const toggleFlag = (questionId: number) => {
+    const newFlagged = new Set(flaggedQuestions);
+    if (newFlagged.has(questionId)) {
+      newFlagged.delete(questionId);
+    } else {
+      newFlagged.add(questionId);
+    }
+    setFlaggedQuestions(newFlagged);
   };
 
   if (loading) {
@@ -283,24 +294,39 @@ export default function QuizTakePage({ params }: { params: { id: string } }) {
 
   const question = quiz.questions?.[currentQuestion];
   const totalQuestions = quiz.questions?.length || 0;
+  const answeredCount = Object.keys(answers).length;
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
-      <div className="bg-background border-b border-border sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold">{quiz.title}</h1>
-              <p className="text-sm text-muted-text">Question {currentQuestion + 1} of {totalQuestions}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{quiz.title}</h1>
+              <div className="flex items-center gap-4 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Question {currentQuestion + 1} of {totalQuestions}
+                </p>
+                <span className="text-sm text-gray-500">•</span>
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  {answeredCount} answered
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className={`px-4 py-2 rounded-lg font-bold ${timeRemaining < 60 ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary'}`}>
+              <div className={`px-5 py-2.5 rounded-xl font-bold text-lg shadow-md ${
+                timeRemaining < 60 
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 animate-pulse' 
+                  : timeRemaining < 300
+                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+              }`}>
                 ⏱️ {formatTime(timeRemaining)}
               </div>
               <button
                 onClick={handleSubmit}
-                className="btn btn-primary"
+                className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
               >
                 Submit & End
               </button>
@@ -310,96 +336,161 @@ export default function QuizTakePage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Progress Bar */}
-      <div className="bg-background border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 py-2">
-          <div className="w-full bg-muted rounded-full h-2">
-            <div
-              className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${((currentQuestion + 1) / totalQuestions) * 100}%` }}
-            />
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-6xl mx-auto px-6 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-purple-600 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${((currentQuestion + 1) / totalQuestions) * 100}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[60px] text-right">
+              {Math.round(((currentQuestion + 1) / totalQuestions) * 100)}%
+            </span>
           </div>
         </div>
       </div>
 
       {/* Question Content */}
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="card mb-6">
-          <div className="mb-4">
-            <span className="text-sm font-medium text-muted-text">QUESTION {currentQuestion + 1}</span>
-            <h2 className="text-xl font-bold mt-2">{question?.text}</h2>
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-6">
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                Question {currentQuestion + 1}
+              </span>
+              <button
+                onClick={() => toggleFlag(question?.id)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  flaggedQuestions.has(question?.id)
+                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {flaggedQuestions.has(question?.id) ? '🚩 Flagged' : '🏳️ Flag for Review'}
+              </button>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-relaxed">
+              {question?.text}
+            </h2>
           </div>
 
           {question?.imageUrl && (
-            <div className="mb-6">
+            <div className="mb-8 bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
               <img
                 src={question.imageUrl}
                 alt="Question"
-                className="max-w-full rounded-lg border border-border"
+                className="max-w-full max-h-96 mx-auto rounded-lg shadow-md"
               />
             </div>
           )}
 
           <div className="space-y-3">
-            {question?.options?.map((option: string, index: number) => (
-              <button
-                key={index}
-                onClick={() => setAnswers({ ...answers, [question.id]: index })}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                  answers[question.id] === index
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    answers[question.id] === index
-                      ? 'border-primary bg-primary text-white'
-                      : 'border-border'
-                  }`}>
-                    {answers[question.id] === index && '✓'}
+            {question?.options?.map((option: string, index: number) => {
+              const optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+              const isSelected = answers[question.id] === index;
+              
+              return (
+                <button
+                  key={index}
+                  onClick={() => setAnswers({ ...answers, [question.id]: index })}
+                  className={`w-full text-left p-5 rounded-xl border-2 transition-all transform hover:scale-[1.01] ${
+                    isSelected
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {isSelected ? '✓' : optionLabels[index]}
+                    </div>
+                    <span className={`flex-1 text-base ${
+                      isSelected 
+                        ? 'text-gray-900 dark:text-white font-medium' 
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {option}
+                    </span>
                   </div>
-                  <span className="flex-1">{option}</span>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
-            disabled={currentQuestion === 0}
-            className="btn btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ← Previous
-          </button>
-
-          <div className="flex gap-2">
-            {Array.from({ length: totalQuestions }, (_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentQuestion(i)}
-                className={`w-10 h-10 rounded-lg font-medium transition-all ${
-                  i === currentQuestion
-                    ? 'bg-primary text-white'
-                    : answers[quiz.questions[i]?.id] !== undefined
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                    : 'bg-muted text-muted-text hover:bg-muted/80'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+        <div className="space-y-4">
+          {/* Question Grid */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 uppercase tracking-wide">
+              Question Navigation
+            </h3>
+            <div className="grid grid-cols-10 gap-2">
+              {Array.from({ length: totalQuestions }, (_, i) => {
+                const questionId = quiz.questions[i]?.id;
+                const isAnswered = answers[questionId] !== undefined;
+                const isCurrent = i === currentQuestion;
+                const isFlagged = flaggedQuestions.has(questionId);
+                
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentQuestion(i)}
+                    className={`relative h-12 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+                      isCurrent
+                        ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-300 dark:ring-blue-500'
+                        : isAnswered
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {i + 1}
+                    {isFlagged && (
+                      <span className="absolute -top-1 -right-1 text-xs">🚩</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-6 mt-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900/30"></div>
+                <span className="text-gray-600 dark:text-gray-400">Answered</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gray-100 dark:bg-gray-700"></div>
+                <span className="text-gray-600 dark:text-gray-400">Not Answered</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-blue-600"></div>
+                <span className="text-gray-600 dark:text-gray-400">Current</span>
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={() => setCurrentQuestion(Math.min(totalQuestions - 1, currentQuestion + 1))}
-            disabled={currentQuestion === totalQuestions - 1}
-            className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next →
-          </button>
+          {/* Previous/Next Buttons */}
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
+              disabled={currentQuestion === 0}
+              className="px-8 py-3 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+            >
+              ← Previous Question
+            </button>
+
+            <button
+              onClick={() => setCurrentQuestion(Math.min(totalQuestions - 1, currentQuestion + 1))}
+              disabled={currentQuestion === totalQuestions - 1}
+              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+            >
+              Next Question →
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -10,9 +10,28 @@ export class QuizzesService {
     private redis: RedisService,
   ) {}
 
-  async create(data: Prisma.QuizCreateInput): Promise<Quiz> {
+  async create(data: any): Promise<Quiz> {
+    // Extract questions from data and format them properly
+    const { questions, ...quizData } = data;
+    
+    // Convert questions to match Prisma schema
+    const formattedQuestions = questions?.map((q: any) => ({
+      ...q,
+      // Convert correctAnswer from integer index to string array
+      correctAnswer: typeof q.correctAnswer === 'number' 
+        ? [q.correctAnswer.toString()] 
+        : Array.isArray(q.correctAnswer) 
+          ? q.correctAnswer.map(String) 
+          : [String(q.correctAnswer)],
+    })) || [];
+    
     const quiz = await this.prisma.quiz.create({
-      data,
+      data: {
+        ...quizData,
+        questions: {
+          create: formattedQuestions,
+        },
+      },
       include: {
         club: {
           select: {
@@ -165,13 +184,18 @@ export class QuizzesService {
       where: {
         quizId,
         userId,
-        score: null,
+      },
+      orderBy: {
+        attemptedAt: 'desc',
       },
     });
 
-    if (existingAttempt && quiz.timeLimit) {
-      const timePassed = Date.now() - existingAttempt.attemptedAt.getTime();
-      if (timePassed > quiz.timeLimit * 60 * 1000) {
+    const startTime = existingAttempt?.attemptedAt || new Date();
+    const timeTaken = Math.floor((Date.now() - startTime.getTime()) / 1000); // in seconds
+
+    if (quiz.timeLimit) {
+      const timeLimit = quiz.timeLimit * 60; // convert to seconds
+      if (timeTaken > timeLimit) {
         throw new BadRequestException('Time limit exceeded');
       }
     }
@@ -182,7 +206,8 @@ export class QuizzesService {
 
     for (const question of (quiz as any).questions) {
       const userAnswer = answers[question.id];
-      const isCorrect = userAnswer === question.correctAnswer;
+      // correctAnswer is now a string array, so we need to check if the user's answer index (as string) is in the array
+      const isCorrect = userAnswer !== undefined && question.correctAnswer.includes(userAnswer.toString());
 
       if (isCorrect) {
         score += question.marks;
@@ -197,6 +222,10 @@ export class QuizzesService {
       });
     }
 
+    const totalMarks = (quiz as any).totalMarks || 100;
+    const percentage = totalMarks ? (score / totalMarks) * 100 : 0;
+    const isPassed = score >= (quiz.passingMarks || 0);
+
     // Create or update attempt
     const attempt = await this.prisma.quizAttempt.upsert({
       where: {
@@ -207,17 +236,22 @@ export class QuizzesService {
       },
       update: {
         score,
+        totalMarks,
+        percentage,
+        timeTaken,
+        answers: answers as any,
+        isPassed,
         attemptedAt: new Date(),
       },
       create: {
         quizId,
         userId,
         score,
-        totalMarks: (quiz as any).totalMarks || 100,
-        percentage: ((quiz as any).totalMarks ? (score / (quiz as any).totalMarks) * 100 : 0),
-        timeTaken: 0,
-        answers: {},
-        isPassed: false,
+        totalMarks,
+        percentage,
+        timeTaken,
+        answers: answers as any,
+        isPassed,
         attemptedAt: new Date(),
       },
       include: {

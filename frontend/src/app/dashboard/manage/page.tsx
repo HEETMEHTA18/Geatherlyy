@@ -24,6 +24,12 @@ export default function ManageClubPage() {
     image: null as string | null,
   });
   const [creatingQuiz, setCreatingQuiz] = useState(false);
+  const [clubStats, setClubStats] = useState<any>(null);
+  const [resources, setResources] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [loadingResources, setLoadingResources] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const fetchQuizzes = async () => {
     if (!selectedClub) return;
@@ -45,9 +51,114 @@ export default function ManageClubPage() {
     }
   };
 
+  const fetchClubStats = async () => {
+    if (!selectedClub) return;
+    
+    setLoadingStats(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/clubs/${selectedClub.id}/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setClubStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch club stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const fetchResources = async () => {
+    if (!selectedClub) return;
+    
+    setLoadingResources(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/resources?clubId=${selectedClub.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setResources(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch resources:', error);
+    } finally {
+      setLoadingResources(false);
+    }
+  };
+
+  const fetchComments = async () => {
+    if (!selectedClub) return;
+    
+    setLoadingComments(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/comments/club/${selectedClub.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setComments(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleExportMembers = async () => {
+    if (!selectedClub) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/clubs/${selectedClub.id}/members/export`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedClub.name}-members.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to export members');
+      }
+    } catch (error) {
+      console.error('Failed to export members:', error);
+      alert('An error occurred while exporting members');
+    }
+  };
+
   useEffect(() => {
     if (selectedClub && activeTab === 'quizzes') {
       fetchQuizzes();
+    } else if (selectedClub && activeTab === 'overview') {
+      fetchClubStats();
+    } else if (selectedClub && activeTab === 'resources') {
+      fetchResources();
+    } else if (selectedClub && activeTab === 'comments') {
+      fetchComments();
     }
   }, [selectedClub, activeTab]);
 
@@ -237,62 +348,85 @@ export default function ManageClubPage() {
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-4 gap-4">
-            <div className="card">
-              <p className="text-muted-text text-sm">Total Members</p>
-              <p className="text-3xl font-bold text-primary">145</p>
+          {loadingStats ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="text-gray-500 mt-2">Loading statistics...</p>
             </div>
-            <div className="card">
-              <p className="text-muted-text text-sm">Activities Created</p>
-              <p className="text-3xl font-bold text-primary">12</p>
-            </div>
-            <div className="card">
-              <p className="text-muted-text text-sm">Quizzes Taken</p>
-              <p className="text-3xl font-bold text-primary">567</p>
-            </div>
-            <div className="card">
-              <p className="text-muted-text text-sm">Avg Attendance</p>
-              <p className="text-3xl font-bold text-primary">78%</p>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="card">
-              <h3 className="font-bold mb-4">Club Info</h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-muted-text">Club Name</p>
-                  <p className="font-medium">Coding Club</p>
+          ) : clubStats ? (
+            <>
+              <div className="grid md:grid-cols-4 gap-4">
+                <div className="card">
+                  <p className="text-muted-text text-sm">Total Members</p>
+                  <p className="text-3xl font-bold text-primary">{clubStats.totalMembers}</p>
                 </div>
-                <div>
-                  <p className="text-muted-text">Faculty Mentor</p>
-                  <p className="font-medium">Dr. Smith</p>
+                <div className="card">
+                  <p className="text-muted-text text-sm">Activities Created</p>
+                  <p className="text-3xl font-bold text-primary">{clubStats.totalActivities}</p>
                 </div>
-                <div>
-                  <p className="text-muted-text">Established</p>
-                  <p className="font-medium">January 2023</p>
+                <div className="card">
+                  <p className="text-muted-text text-sm">Quiz Attempts</p>
+                  <p className="text-3xl font-bold text-primary">{clubStats.totalQuizAttempts}</p>
+                </div>
+                <div className="card">
+                  <p className="text-muted-text text-sm">Upcoming Events</p>
+                  <p className="text-3xl font-bold text-primary">{clubStats.upcomingActivities}</p>
                 </div>
               </div>
-              <button className="w-full btn btn-outline text-sm mt-4">
-                Edit Club Info
-              </button>
+            </>
+          ) : (
+            <div className="text-center py-8 text-muted-text">
+              <p>No statistics available</p>
             </div>
+          )}
 
-            <div className="card">
-              <h3 className="font-bold mb-4">Recent Actions</h3>
-              <div className="space-y-2 text-sm">
-                <p className="py-2 border-b border-border">
-                  📝 10 members joined
-                </p>
-                <p className="py-2 border-b border-border">
-                  📊 Quiz created by you
-                </p>
-                <p className="py-2 border-b border-border">
-                  💬 15 new comments
-                </p>
+          {clubStats && (
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="card">
+                <h3 className="font-bold mb-4">Club Info</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-muted-text">Club Name</p>
+                    <p className="font-medium">{selectedClub?.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-text">Category</p>
+                    <p className="font-medium">{selectedClub?.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-text">Established</p>
+                    <p className="font-medium">{new Date(selectedClub?.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <button className="w-full btn btn-outline text-sm mt-4">
+                  Edit Club Info
+                </button>
+              </div>
+
+              <div className="card">
+                <h3 className="font-bold mb-4">Recent Members</h3>
+                <div className="space-y-2 text-sm">
+                  {clubStats.recentMembers?.slice(0, 5).map((member: any) => (
+                    <div key={member.id} className="py-2 border-b border-border flex items-center gap-2">
+                      {member.user.avatar ? (
+                        <img src={member.user.avatar} alt={member.user.name} className="w-6 h-6 rounded-full" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs">
+                          {member.user.name[0]}
+                        </div>
+                      )}
+                      <span>{member.user.name} joined</span>
+                    </div>
+                  ))}
+                  {clubStats.recentCommentsCount > 0 && (
+                    <p className="py-2 text-muted-text">
+                      💬 {clubStats.recentCommentsCount} new comments this week
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -300,29 +434,27 @@ export default function ManageClubPage() {
       {activeTab === 'members' && (
         <div className="card">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold">Members</h2>
-            <button className="btn btn-primary text-sm">Import Members</button>
+            <h2 className="font-bold">Members ({selectedClub?.members?.length || 0})</h2>
+            <button onClick={handleExportMembers} className="btn btn-primary text-sm">
+              📥 Export to Excel
+            </button>
           </div>
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-4 text-sm font-semibold">Name</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold">Email</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold">Role</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold">Department</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold">Joined</th>
               </tr>
             </thead>
             <tbody>
-              {[
-                { name: 'Alice', email: 'alice@uni.edu', role: 'Coordinator', joined: '2024-01-15' },
-                { name: 'Bob', email: 'bob@uni.edu', role: 'Member', joined: '2024-01-16' },
-                { name: 'Carol', email: 'carol@uni.edu', role: 'Member', joined: '2024-01-17' },
-              ].map((member) => (
-                <tr key={member.email} className="border-b border-border hover:bg-muted-bg">
-                  <td className="py-3 px-4 text-sm">{member.name}</td>
-                  <td className="py-3 px-4 text-sm">{member.email}</td>
-                  <td className="py-3 px-4 text-sm">{member.role}</td>
-                  <td className="py-3 px-4 text-sm">{member.joined}</td>
+              {selectedClub?.members?.map((member: any) => (
+                <tr key={member.id} className="border-b border-border hover:bg-muted-bg">
+                  <td className="py-3 px-4 text-sm">{member.user.name}</td>
+                  <td className="py-3 px-4 text-sm">{member.user.email}</td>
+                  <td className="py-3 px-4 text-sm">{member.user.department}</td>
+                  <td className="py-3 px-4 text-sm">{new Date(member.joinedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -335,22 +467,32 @@ export default function ManageClubPage() {
         <div className="space-y-4">
           <button className="btn btn-primary">+ Create Activity</button>
           <div className="card">
-            <h3 className="font-bold mb-4">Upcoming Activities</h3>
+            <h3 className="font-bold mb-4">Activities</h3>
             <div className="space-y-3">
-              {[
-                { title: 'Coding Workshop', date: '2024-02-01', attendees: 45 },
-                { title: 'Git Basics Session', date: '2024-02-05', attendees: 32 },
-              ].map((activity) => (
-                <div key={activity.title} className="p-3 border border-border rounded hover:bg-muted-bg transition-colors">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{activity.title}</p>
-                      <p className="text-sm text-muted-text">{activity.date} • {activity.attendees} attendees</p>
+              {selectedClub?.activities && selectedClub.activities.length > 0 ? (
+                selectedClub.activities.map((activity: any) => (
+                  <div key={activity.id} className="p-3 border border-border rounded hover:bg-muted-bg transition-colors">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{activity.title}</p>
+                        <p className="text-sm text-muted-text">
+                          {new Date(activity.startDate).toLocaleDateString()} • {activity.type}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        activity.status === 'UPCOMING' ? 'bg-blue-100 text-blue-700' :
+                        activity.status === 'ONGOING' ? 'bg-green-100 text-green-700' :
+                        activity.status === 'COMPLETED' ? 'bg-gray-100 text-gray-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {activity.status}
+                      </span>
                     </div>
-                    <button className="text-sm text-primary">Edit</button>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-center py-8 text-muted-text">No activities yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -558,19 +700,42 @@ export default function ManageClubPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setCurrentQuestion({...currentQuestion, image: reader.result as string});
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            // Show loading state
+                            setCurrentQuestion({...currentQuestion, image: 'uploading'});
+                            
+                            const formData = new FormData();
+                            formData.append('image', file);
+                            
+                            const token = localStorage.getItem('token');
+                            const response = await fetch('http://localhost:5000/api/upload/quiz-image', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                              },
+                              body: formData,
+                            });
+                            
+                            if (response.ok) {
+                              const { url } = await response.json();
+                              setCurrentQuestion({...currentQuestion, image: url});
+                            } else {
+                              alert('Failed to upload image');
+                              setCurrentQuestion({...currentQuestion, image: null});
+                            }
+                          } catch (error) {
+                            console.error('Error uploading image:', error);
+                            alert('Error uploading image');
+                            setCurrentQuestion({...currentQuestion, image: null});
+                          }
                         }
                       }}
                       className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                     />
-                    {currentQuestion.image && (
+                    {currentQuestion.image && currentQuestion.image !== 'uploading' && (
                       <div className="mt-2 relative">
                         <img src={currentQuestion.image} alt="Question" className="max-h-40 rounded-lg" />
                         <button
@@ -579,6 +744,11 @@ export default function ManageClubPage() {
                         >
                           ✕
                         </button>
+                      </div>
+                    )}
+                    {currentQuestion.image === 'uploading' && (
+                      <div className="mt-2 text-sm text-primary">
+                        Uploading image...
                       </div>
                     )}
                   </div>
@@ -689,33 +859,68 @@ export default function ManageClubPage() {
       {activeTab === 'resources' && (
         <div className="space-y-4">
           <button className="btn btn-primary">+ Upload Resource</button>
-          <div className="grid md:grid-cols-2 gap-4">
-            {['JavaScript Guide.pdf', 'React Tutorial.pdf', 'CSS Mastery.pdf'].map((resource) => (
-              <div key={resource} className="card">
-                <p className="font-medium truncate">📄 {resource}</p>
-                <p className="text-sm text-muted-text mt-2">Uploaded 3 days ago</p>
-              </div>
-            ))}
-          </div>
+          {loadingResources ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {resources.length > 0 ? (
+                resources.map((resource) => (
+                  <div key={resource.id} className="card">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium truncate">📄 {resource.title}</p>
+                        <p className="text-sm text-muted-text mt-1">{resource.description}</p>
+                        <div className="flex gap-4 text-xs text-muted-text mt-2">
+                          <span>By {resource.uploader.name}</span>
+                          <span>{new Date(resource.createdAt).toLocaleDateString()}</span>
+                          <span>{resource.downloads} downloads</span>
+                        </div>
+                      </div>
+                      <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
+                        {resource.type}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center py-8 text-muted-text">
+                  <p>No resources uploaded yet</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* Comments Tab */}
       {activeTab === 'comments' && (
         <div className="card">
-          <h3 className="font-bold mb-4">Recent Comments</h3>
-          <div className="space-y-4">
-            {[
-              { author: 'Anonymous', text: 'Great activity! Learned a lot.', date: 'Today' },
-              { author: 'Anonymous', text: 'Can we have more quizzes?', date: 'Yesterday' },
-            ].map((comment, index) => (
-              <div key={index} className="p-3 border border-border rounded">
-                <p className="text-sm text-muted-text font-medium">{comment.author}</p>
-                <p className="text-sm mt-2">{comment.text}</p>
-                <p className="text-xs text-muted-text mt-2">{comment.date}</p>
-              </div>
-            ))}
-          </div>
+          <h3 className="font-bold mb-4">Comments & Feedback</h3>
+          {loadingComments ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {comments.length > 0 ? (
+                comments.map((comment) => (
+                  <div key={comment.id} className="p-3 border border-border rounded">
+                    <p className="text-sm text-muted-text font-medium">
+                      {comment.isAnonymous ? 'Anonymous' : comment.user?.name}
+                    </p>
+                    <p className="text-sm mt-2">{comment.content}</p>
+                    <p className="text-xs text-muted-text mt-2">
+                      {new Date(comment.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center py-8 text-muted-text">No comments yet</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

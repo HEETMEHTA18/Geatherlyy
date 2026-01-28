@@ -6,7 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup:backend": "cd backend && npm install && npm run prisma:generate",
+    "setup:frontend": "cd frontend && npm install",
+    "setup:all": "npm run setup:backend && npm run setup:frontend",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "db:migrate": "cd backend && npm run prisma:migrate",
+    "db:seed": "cd backend && npm run prisma:seed",
+    "db:studio": "cd backend && npm run prisma:studio"
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.0",

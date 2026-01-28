@@ -11,7 +11,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('api/upload')
+@Controller('upload')
 @UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(private readonly cloudinaryService: CloudinaryService) {}
@@ -68,5 +68,30 @@ export class UploadController {
       width: result.width,
       height: result.height,
     }));
+  }
+
+  @Post('quiz-image')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          return cb(new BadRequestException('Only image files are allowed!'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadQuizImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const result = await this.cloudinaryService.uploadImage(file, 'gatherly/quiz-questions');
+    
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
   }
 }

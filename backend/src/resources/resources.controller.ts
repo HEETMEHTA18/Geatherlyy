@@ -13,7 +13,10 @@ import {
   HttpStatus,
   ParseIntPipe,
   ForbiddenException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ResourcesService } from './resources.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -65,14 +68,37 @@ export class ResourcesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.COORDINATOR, UserRole.FACULTY, UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload a new resource (Coordinator/Faculty/Admin only)' })
   @ApiResponse({ status: 201, description: 'Resource uploaded successfully' })
-  async createResource(@Body() createData: any, @Request() req) {
-    // In a real implementation, handle file upload with Cloudinary/S3
-    // For now, expect fileUrl to be provided in the body
+  async createResource(
+    @Body() createData: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+  ) {
+    let fileUrl = createData.url;
+    let fileSize = 0;
+
+    // If file is uploaded, use Cloudinary
+    if (file) {
+      const cloudinaryService = this.resourcesService['cloudinary'];
+      if (cloudinaryService) {
+        const uploadResult = await cloudinaryService.uploadFile(file, 'gatherly/resources');
+        fileUrl = uploadResult.secure_url;
+        fileSize = file.size;
+      }
+    }
+
     return this.resourcesService.create({
-      ...createData,
+      title: createData.title,
+      description: createData.description,
+      type: createData.type || 'PDF',
+      url: fileUrl,
+      fileSize: fileSize,
+      club: {
+        connect: { id: parseInt(createData.clubId) },
+      },
       uploader: {
         connect: { id: req.user.id },
       },
