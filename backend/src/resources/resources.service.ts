@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { Resource, Prisma, UserRole } from '@prisma/client';
 
 @Injectable()
 export class ResourcesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinary: CloudinaryService,
+  ) {}
 
   async create(data: Prisma.ResourceCreateInput): Promise<Resource> {
     return this.prisma.resource.create({

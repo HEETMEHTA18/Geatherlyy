@@ -39,6 +39,34 @@ export class CloudinaryService {
     return Promise.all(uploadPromises);
   }
 
+  async uploadFile(file: Express.Multer.File, folder: string = 'gatherly'): Promise<any> {
+    return new Promise((resolve, reject) => {
+      // Use 'raw' for PDFs and 'image' for images
+      const resourceType = file.mimetype === 'application/pdf' ? 'raw' : 'image';
+      
+      const upload = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: resourceType,
+          // Only apply transformations for images
+          ...(resourceType === 'image' && {
+            transformation: [
+              { width: 1200, height: 1200, crop: 'limit' },
+              { quality: 'auto' },
+              { fetch_format: 'auto' }
+            ]
+          })
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+
+      upload.end(file.buffer);
+    });
+  }
+
   async deleteImage(publicId: string): Promise<any> {
     return cloudinary.uploader.destroy(publicId);
   }

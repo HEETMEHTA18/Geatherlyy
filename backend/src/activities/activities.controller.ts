@@ -78,8 +78,21 @@ export class ActivitiesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new activity (Coordinator/Faculty/Admin only)' })
   @ApiResponse({ status: 201, description: 'Activity created successfully' })
-  async createActivity(@Body() createData: any) {
-    return this.activitiesService.create(createData);
+  async createActivity(@Body() createData: any, @Request() req) {
+    // Transform the incoming data to match Prisma's expected format
+    const activityData = {
+      title: createData.title,
+      description: createData.description,
+      startDate: new Date(createData.startDate),
+      location: createData.location,
+      type: createData.activityType as ActivityType,
+      status: ActivityStatus.UPCOMING,
+      club: {
+        connect: { id: createData.clubId }
+      }
+    };
+    
+    return this.activitiesService.create(activityData);
   }
 
   @Put(':id')

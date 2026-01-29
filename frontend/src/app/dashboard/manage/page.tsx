@@ -30,6 +30,13 @@ export default function ManageClubPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [loadingResources, setLoadingResources] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [showResourceModal, setShowResourceModal] = useState(false);
+  const [uploadingResource, setUploadingResource] = useState(false);
+  const [resourceData, setResourceData] = useState({
+    title: '',
+    description: '',
+    file: null as File | null,
+  });
 
   const fetchQuizzes = async () => {
     if (!selectedClub) return;
@@ -147,6 +154,84 @@ export default function ManageClubPage() {
     } catch (error) {
       console.error('Failed to export members:', error);
       alert('An error occurred while exporting members');
+    }
+  };
+
+  const handleUploadResource = async () => {
+    if (!resourceData.title || !resourceData.file || !selectedClub) {
+      alert('Please provide a title and select a file');
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(resourceData.file.type)) {
+      alert('Only JPEG and PDF files are allowed');
+      return;
+    }
+
+    // Validate file size (50MB)
+    const maxSize = 50 * 1024 * 1024;
+    if (resourceData.file.size > maxSize) {
+      alert('File size must be less than 50MB');
+      return;
+    }
+
+    setUploadingResource(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('title', resourceData.title);
+      formData.append('description', resourceData.description);
+      formData.append('clubId', selectedClub.id.toString());
+      formData.append('file', resourceData.file);
+
+      const response = await fetch('http://localhost:5000/api/resources', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        alert('Resource uploaded successfully!');
+        setShowResourceModal(false);
+        setResourceData({ title: '', description: '', file: null });
+        fetchResources();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to upload resource');
+      }
+    } catch (error) {
+      console.error('Error uploading resource:', error);
+      alert('An error occurred while uploading the resource');
+    } finally {
+      setUploadingResource(false);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId: number) => {
+    if (!confirm('Are you sure you want to delete this resource?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/resources/${resourceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        alert('Resource deleted successfully');
+        fetchResources();
+      } else {
+        alert('Failed to delete resource');
+      }
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      alert('An error occurred while deleting the resource');
     }
   };
 
@@ -304,7 +389,7 @@ export default function ManageClubPage() {
           <div className="text-6xl mb-4">📋</div>
           <h3 className="text-xl font-semibold mb-2">No clubs to manage</h3>
           <p className="text-gray-500 mb-6">You are not coordinating any clubs yet.</p>
-          {user && ['coordinator', 'faculty', 'admin'].includes(user.role) && (
+          {user && ['faculty', 'admin'].includes(user.role) && (
             <button
               onClick={() => router.push('/dashboard/create-club')}
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
@@ -451,9 +536,9 @@ export default function ManageClubPage() {
             <tbody>
               {selectedClub?.members?.map((member: any) => (
                 <tr key={member.id} className="border-b border-border hover:bg-muted-bg">
-                  <td className="py-3 px-4 text-sm">{member.user.name}</td>
-                  <td className="py-3 px-4 text-sm">{member.user.email}</td>
-                  <td className="py-3 px-4 text-sm">{member.user.department}</td>
+                  <td className="py-3 px-4 text-sm">{member.user?.name || member.userId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm">{member.user?.email || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm">{member.user?.department || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm">{new Date(member.joinedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
@@ -858,7 +943,7 @@ export default function ManageClubPage() {
       {/* Resources Tab */}
       {activeTab === 'resources' && (
         <div className="space-y-4">
-          <button className="btn btn-primary">+ Upload Resource</button>
+          <button onClick={() => setShowResourceModal(true)} className="btn btn-primary">📤 Upload Resource</button>
           {loadingResources ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -867,20 +952,41 @@ export default function ManageClubPage() {
             <div className="grid md:grid-cols-2 gap-4">
               {resources.length > 0 ? (
                 resources.map((resource) => (
-                  <div key={resource.id} className="card">
+                  <div 
+                    key={resource.id} 
+                    className="card hover:shadow-lg transition-shadow relative group"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="font-medium truncate">📄 {resource.title}</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">{resource.type === 'PDF' ? '📄' : '🖼️'}</span>
+                          <p className="font-medium">{resource.title}</p>
+                        </div>
                         <p className="text-sm text-muted-text mt-1">{resource.description}</p>
                         <div className="flex gap-4 text-xs text-muted-text mt-2">
                           <span>By {resource.uploader.name}</span>
                           <span>{new Date(resource.createdAt).toLocaleDateString()}</span>
                           <span>{resource.downloads} downloads</span>
+                          <span>{(resource.fileSize / 1024 / 1024).toFixed(2)} MB</span>
                         </div>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
-                        {resource.type}
-                      </span>
+                      <div className="flex gap-2">
+                        <a
+                          href={`http://localhost:5000/api/resources/${resource.id}/download`}
+                          className="text-xs px-3 py-1 rounded bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/30"
+                        >
+                          {resource.type === 'PDF' ? 'Download' : 'Download'}
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteResource(resource.id);
+                          }}
+                          className="text-xs px-3 py-1 rounded bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/30"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -891,6 +997,81 @@ export default function ManageClubPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Resource Upload Modal */}
+      {showResourceModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-border">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold">Upload Resource</h2>
+                <button
+                  onClick={() => setShowResourceModal(false)}
+                  className="text-muted-text hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Title *</label>
+                <input
+                  type="text"
+                  value={resourceData.title}
+                  onChange={(e) => setResourceData({ ...resourceData, title: e.target.value })}
+                  placeholder="e.g., Study Material - Chapter 5"
+                  className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <textarea
+                  value={resourceData.description}
+                  onChange={(e) => setResourceData({ ...resourceData, description: e.target.value })}
+                  placeholder="Brief description of the resource..."
+                  rows={3}
+                  className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">File (JPEG or PDF, max 50MB) *</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.pdf"
+                  onChange={(e) => setResourceData({ ...resourceData, file: e.target.files?.[0] || null })}
+                  className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {resourceData.file && (
+                  <p className="text-sm text-muted-text mt-2">
+                    Selected: {resourceData.file.name} ({(resourceData.file.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-border flex gap-3">
+              <button
+                onClick={() => setShowResourceModal(false)}
+                className="flex-1 btn btn-outline"
+                disabled={uploadingResource}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUploadResource}
+                className="flex-1 btn btn-primary"
+                disabled={uploadingResource}
+              >
+                {uploadingResource ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

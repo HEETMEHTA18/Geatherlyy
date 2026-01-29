@@ -193,7 +193,7 @@ export default function DashboardPage() {
               {stats.availableClubs} clubs available, {stats.joinedClubs} clubs joined
             </p>
           </div>
-          {user && ['coordinator', 'admin'].includes(user.role) && (
+          {user && ['faculty', 'admin'].includes(user.role) && (
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => router.push('/dashboard/create-club')}
@@ -307,7 +307,7 @@ export default function DashboardPage() {
               <p className="text-gray-500 mb-6">
                 {activeTab === 'pending' ? 'You have no pending club join requests' : 'Be the first to create a club!'}
               </p>
-              {user && activeTab !== 'pending' && ['coordinator', 'faculty', 'admin'].includes(user.role) && (
+              {user && activeTab !== 'pending' && ['faculty', 'admin'].includes(user.role) && (
                 <button
                   onClick={() => router.push('/dashboard/create-club')}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"

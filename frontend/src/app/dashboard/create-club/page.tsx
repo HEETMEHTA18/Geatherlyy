@@ -1,11 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PlusIcon, ImageIcon, Cross2Icon } from '@radix-ui/react-icons';
+import { useAuthStore } from '@/context/AuthContext';
 
 export default function CreateClubPage() {
   const router = useRouter();
+  const { user, isLoading } = useAuthStore();
   const [formData, setFormData] = useState({
     clubName: '',
     description: '',
@@ -18,6 +20,27 @@ export default function CreateClubPage() {
   const [eventPhotoPreviews, setEventPhotoPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Check if user is authorized (faculty or admin only)
+  useEffect(() => {
+    if (!isLoading && (!user || !['faculty', 'admin'].includes(user.role))) {
+      router.push('/dashboard');
+    }
+  }, [user, isLoading, router]);
+
+  // Show loading state while checking auth
+  if (isLoading || !user) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Prevent rendering if not authorized
+  if (!['faculty', 'admin'].includes(user.role)) {
+    return null;
+  }
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>

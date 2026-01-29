@@ -17,6 +17,12 @@ export default function ClubDetailPage({
   const [applyingCoordinator, setApplyingCoordinator] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [resources, setResources] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loadingResources, setLoadingResources] = useState(false);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
   useEffect(() => {
     // Get current user ID and role from token
@@ -57,6 +63,78 @@ export default function ClubDetailPage({
 
     fetchClub();
   }, [params.id]);
+
+  // Fetch resources when resources tab is active
+  useEffect(() => {
+    if (activeTab === 'resources' && club) {
+      const fetchResources = async () => {
+        setLoadingResources(true);
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`http://localhost:5000/api/resources?clubId=${params.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setResources(data);
+          }
+        } catch (error) {
+          console.error('Error fetching resources:', error);
+        } finally {
+          setLoadingResources(false);
+        }
+      };
+      fetchResources();
+    }
+  }, [activeTab, club, params.id]);
+
+  // Fetch quizzes when quizzes tab is active
+  useEffect(() => {
+    if (activeTab === 'quizzes' && club) {
+      const fetchQuizzes = async () => {
+        setLoadingQuizzes(true);
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`http://localhost:5000/api/quizzes?clubId=${params.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setQuizzes(data);
+          }
+        } catch (error) {
+          console.error('Error fetching quizzes:', error);
+        } finally {
+          setLoadingQuizzes(false);
+        }
+      };
+      fetchQuizzes();
+    }
+  }, [activeTab, club, params.id]);
+
+  // Fetch activities when activities tab is active
+  useEffect(() => {
+    if (activeTab === 'activities' && club) {
+      const fetchActivities = async () => {
+        setLoadingActivities(true);
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`http://localhost:5000/api/activities?clubId=${params.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setActivities(data);
+          }
+        } catch (error) {
+          console.error('Error fetching activities:', error);
+        } finally {
+          setLoadingActivities(false);
+        }
+      };
+      fetchActivities();
+    }
+  }, [activeTab, club, params.id]);
 
   const handleApplyAsCoordinator = async () => {
     if (!coordinatorReason.trim()) {
@@ -287,22 +365,36 @@ export default function ClubDetailPage({
       {activeTab === 'activities' && (
         <div className="space-y-4">
           <h3 className="font-bold">Upcoming Activities</h3>
-          {[
-            { title: 'Coding Workshop', date: '2024-02-01', time: '3:00 PM' },
-            { title: 'Hackathon Planning', date: '2024-02-05', time: '5:00 PM' },
-          ].map((activity) => (
-            <div key={activity.title} className="card hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex justify-between">
-                <div>
-                  <p className="font-medium">{activity.title}</p>
-                  <p className="text-sm text-muted-text">
-                    {activity.date} at {activity.time}
-                  </p>
-                </div>
-                <button className="btn btn-primary text-sm">Register</button>
-              </div>
+          {loadingActivities ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-          ))}
+          ) : activities.length > 0 ? (
+            activities.map((activity) => (
+              <div key={activity.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex justify-between">
+                  <div>
+                    <p className="font-medium">{activity.title}</p>
+                    <p className="text-sm text-muted-text">
+                      {new Date(activity.startDate).toLocaleDateString()} at {new Date(activity.startDate).toLocaleTimeString()}
+                    </p>
+                    {activity.location && <p className="text-sm text-muted-text">📍 {activity.location}</p>}
+                  </div>
+                  <span className={`text-xs px-3 py-1 rounded h-fit ${
+                    activity.status === 'UPCOMING' ? 'bg-blue-100 text-blue-600' :
+                    activity.status === 'ONGOING' ? 'bg-green-100 text-green-600' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {activity.status}
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-text">
+              <p>No activities scheduled yet</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -310,26 +402,68 @@ export default function ClubDetailPage({
       {activeTab === 'quizzes' && (
         <div className="space-y-4">
           <h3 className="font-bold">Active Quizzes</h3>
-          {['Week 1 Quiz', 'Week 2 Quiz', 'Final Assessment'].map((quiz) => (
-            <div key={quiz} className="card hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex justify-between items-center">
-                <p className="font-medium">{quiz}</p>
-                <button className="btn btn-primary text-sm">Attempt</button>
-              </div>
+          {loadingQuizzes ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-          ))}
+          ) : quizzes.length > 0 ? (
+            quizzes.map((quiz) => (
+              <div key={quiz.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">{quiz.title}</p>
+                    <p className="text-sm text-muted-text">{quiz.questions?.length || 0} questions</p>
+                  </div>
+                  <button 
+                    onClick={() => router.push(`/dashboard/quiz/${quiz.id}`)}
+                    className="btn btn-primary text-sm"
+                  >
+                    Attempt
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-text">
+              <p>No quizzes available yet</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Resources */}
       {activeTab === 'resources' && (
         <div className="grid md:grid-cols-2 gap-4">
-          {['JavaScript Guide', 'React Tutorial', 'Web APIs'].map((resource) => (
-            <div key={resource} className="card hover:shadow-lg transition-shadow cursor-pointer">
-              <p className="font-medium mb-2">📄 {resource}</p>
-              <button className="btn btn-outline text-sm w-full">Download</button>
+          {loadingResources ? (
+            <div className="col-span-2 text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-          ))}
+          ) : resources.length > 0 ? (
+            resources.map((resource) => (
+              <div key={resource.id} className="card hover:shadow-lg transition-shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{resource.type === 'PDF' ? '📄' : '🖼️'}</span>
+                  <p className="font-medium">{resource.title}</p>
+                </div>
+                <p className="text-sm text-muted-text mb-3">{resource.description}</p>
+                <div className="flex gap-2 text-xs text-muted-text mb-3">
+                  <span>By {resource.uploader?.name}</span>
+                  <span>•</span>
+                  <span>{(resource.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                </div>
+                <a
+                  href={`http://localhost:5000/api/resources/${resource.id}/download`}
+                  className="btn btn-outline text-sm w-full"
+                >
+                  Download
+                </a>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-2 text-center py-8 text-muted-text">
+              <p>No resources uploaded yet</p>
+            </div>
+          )}
         </div>
       )}
 

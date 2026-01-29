@@ -77,23 +77,47 @@ export class ResourcesController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
+    // Validate file if uploaded
+    if (file) {
+      // Check file size (50MB = 50 * 1024 * 1024 bytes)
+      const maxSize = 50 * 1024 * 1024;
+      if (file.size > maxSize) {
+        throw new ForbiddenException('File size exceeds 50MB limit');
+      }
+
+      // Check file type (JPEG and PDF only)
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'application/pdf'
+      ];
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        throw new ForbiddenException('Only JPEG and PDF files are allowed');
+      }
+    }
+
     let fileUrl = createData.url;
     let fileSize = 0;
+    let fileType = createData.type || 'PDF';
 
     // If file is uploaded, use Cloudinary
     if (file) {
-      const cloudinaryService = this.resourcesService['cloudinary'];
-      if (cloudinaryService) {
-        const uploadResult = await cloudinaryService.uploadFile(file, 'gatherly/resources');
-        fileUrl = uploadResult.secure_url;
-        fileSize = file.size;
+      const uploadResult = await this.resourcesService['cloudinary'].uploadFile(file, 'gatherly/resources');
+      fileUrl = uploadResult.secure_url;
+      fileSize = file.size;
+      
+      // Determine file type from mimetype
+      if (file.mimetype === 'application/pdf') {
+        fileType = 'PDF';
+      } else if (file.mimetype.startsWith('image/')) {
+        fileType = 'IMAGE';
       }
     }
 
     return this.resourcesService.create({
       title: createData.title,
       description: createData.description,
-      type: createData.type || 'PDF',
+      type: fileType,
       url: fileUrl,
       fileSize: fileSize,
       club: {

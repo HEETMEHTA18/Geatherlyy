@@ -153,21 +153,13 @@ export default function CoordinatorsPage() {
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-border">
               <RocketIcon className="w-16 h-16 mx-auto mb-4 text-muted-text opacity-50" />
               <h3 className="text-xl font-semibold mb-2">No Clubs Yet</h3>
-              <p className="text-muted-text mb-6">You're not coordinating any clubs yet.</p>
-              <div className="flex gap-3 justify-center">
-                <Link
-                  href="/dashboard/create-club"
-                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
-                >
-                  Create New Club
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="px-6 py-3 border border-border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-                >
-                  Browse Clubs
-                </Link>
-              </div>
+              <p className="text-muted-text mb-6">You're not coordinating any clubs yet. Apply to be a coordinator for existing clubs.</p>
+              <Link
+                href="/dashboard"
+                className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium inline-block"
+              >
+                Browse Clubs
+              </Link>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

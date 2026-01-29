@@ -743,6 +743,3 @@ export class ClubsService {
     return await workbook.xlsx.writeBuffer() as Buffer;
   }
 }
-
-
-
