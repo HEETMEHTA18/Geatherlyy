@@ -345,17 +345,3 @@ docker-compose restart
 docker-compose down -v
 docker-compose up -d
 ```
-
-For more troubleshooting tips, see [SETUP.md](./SETUP.md#troubleshooting).
-
-## 📄 License
-
-MIT
-
----
-
-**Made with ❤️ for university club management**
-
-**Built with ❤️ for university club management**
-#   G e a t h e r l y y  
- 
