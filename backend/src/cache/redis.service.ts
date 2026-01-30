@@ -45,8 +45,10 @@ export class RedisService {
   // Clear all cache
   async reset(): Promise<void> {
     try {
-      if (typeof this.cacheManager.reset === 'function') {
-        await this.cacheManager.reset();
+      // NestJS Cache Manager doesn't have a reset method in newer versions
+      // Use store.reset() instead if available
+      if ((this.cacheManager as any).store?.reset) {
+        await (this.cacheManager as any).store.reset();
       }
     } catch (error) {
       // Silently fail

@@ -10,7 +10,7 @@ export class ClubsService {
     private prisma: PrismaService,
     private redis: RedisService,
     private cloudinary: CloudinaryService,
-  ) {}
+  ) { }
 
   async create(
     data: any,
@@ -19,7 +19,7 @@ export class ClubsService {
   ): Promise<Club> {
     // Handle both 'name' and 'clubName' from frontend
     const clubName = data.name || data.clubName;
-    
+
     if (!clubName) {
       throw new Error('Club name is required');
     }
@@ -89,7 +89,7 @@ export class ClubsService {
     });
 
     // Invalidate clubs cache (non-blocking)
-    this.redis.del('clubs:all').catch(() => {});
+    this.redis.del('clubs:all').catch(() => { });
 
     return club;
   }
@@ -104,7 +104,7 @@ export class ClubsService {
         category: 'asc',
       },
     });
-    
+
     return clubs.map(club => club.category).filter(Boolean);
   }
 
@@ -139,6 +139,11 @@ export class ClubsService {
       skip: filters?.skip,
       take: filters?.take || 20,
       include: {
+        mentor: {
+          select: {
+            name: true,
+          },
+        },
         coordinators: {
           include: {
             user: {
@@ -155,6 +160,7 @@ export class ClubsService {
           select: {
             members: true,
             activities: true,
+            resources: true,
           },
         },
       },
@@ -301,6 +307,7 @@ export class ClubsService {
           select: {
             members: true,
             activities: true,
+            resources: true,
           },
         },
       },

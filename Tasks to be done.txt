@@ -1,0 +1,4 @@
+Tasks to be done:
+show total members joined when view club
+show category(tech,non-tech)add column in club
+after member joined in any club remove "join club" button

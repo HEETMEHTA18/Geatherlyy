@@ -27,29 +27,29 @@ export default function DashboardPage() {
     const fetchClubs = async () => {
       try {
         const token = localStorage.getItem('token');
-        
+
         // Fetch categories
         const categoriesResponse = await fetch('http://localhost:5000/api/clubs/categories', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
-        
+
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json();
           setCategories(categoriesData);
         }
-        
+
         // Build query params for category filter
         const categoryParam = selectedCategory !== 'all' ? `?category=${selectedCategory}` : '';
-        
+
         // Fetch all clubs (with optional category filter)
         const allClubsResponse = await fetch(`http://localhost:5000/api/clubs${categoryParam}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
-        
+
         // Fetch user's clubs
         const myClubsResponse = await fetch('http://localhost:5000/api/clubs/my-clubs', {
           headers: {
@@ -63,11 +63,11 @@ export default function DashboardPage() {
             'Authorization': `Bearer ${token}`,
           },
         });
-        
+
         if (allClubsResponse.ok) {
           const allData = await allClubsResponse.json();
           setClubs(allData);
-          
+
           if (myClubsResponse.ok) {
             const myData = await myClubsResponse.json();
             setMyClubs(myData);
@@ -96,7 +96,7 @@ export default function DashboardPage() {
 
   const handleJoinClub = async (clubId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    
+
     setJoiningClub(clubId);
     try {
       const token = localStorage.getItem('token');
@@ -106,7 +106,7 @@ export default function DashboardPage() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         // Refresh clubs data
         const categoryParam = selectedCategory !== 'all' ? `?category=${selectedCategory}` : '';
@@ -119,7 +119,7 @@ export default function DashboardPage() {
         const pendingClubsResponse = await fetch('http://localhost:5000/api/clubs/pending-requests', {
           headers: { 'Authorization': `Bearer ${token}` },
         });
-        
+
         if (allClubsResponse.ok && myClubsResponse.ok) {
           const allData = await allClubsResponse.json();
           const myData = await myClubsResponse.json();
@@ -134,7 +134,7 @@ export default function DashboardPage() {
             const pendingData = await pendingClubsResponse.json();
             setPendingClubs(pendingData);
           }
-          
+
           // Update selected club if modal is open
           if (selectedClub?.id === clubId) {
             const updatedClub = myData.find((c: any) => c.id === clubId);
@@ -195,7 +195,7 @@ export default function DashboardPage() {
           </div>
           {user && ['coordinator', 'admin'].includes(user.role) && (
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => router.push('/dashboard/create-club')}
                 className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
               >
@@ -211,31 +211,28 @@ export default function DashboardPage() {
           <span className="text-sm font-medium text-muted-text whitespace-nowrap">Filter by:</span>
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-              selectedCategory === 'all'
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${selectedCategory === 'all'
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
+              }`}
           >
             All Clubs
           </button>
           <button
             onClick={() => setSelectedCategory('Technical')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-              selectedCategory === 'Technical'
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${selectedCategory === 'Technical'
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
+              }`}
           >
             Technical
           </button>
           <button
             onClick={() => setSelectedCategory('Non-Technical')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-              selectedCategory === 'Non-Technical'
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${selectedCategory === 'Non-Technical'
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
+              }`}
           >
             Non-Technical
           </button>
@@ -245,11 +242,10 @@ export default function DashboardPage() {
         <div className="flex items-center gap-6 border-b border-border">
           <button
             onClick={() => setActiveTab('all')}
-            className={`pb-3 px-2 font-medium transition-colors relative ${
-              activeTab === 'all'
+            className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'all'
                 ? 'text-primary'
                 : 'text-muted-text hover:text-foreground'
-            }`}
+              }`}
           >
             All Clubs
             {activeTab === 'all' && (
@@ -258,11 +254,10 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab('my-clubs')}
-            className={`pb-3 px-2 font-medium transition-colors relative ${
-              activeTab === 'my-clubs'
+            className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'my-clubs'
                 ? 'text-primary'
                 : 'text-muted-text hover:text-foreground'
-            }`}
+              }`}
           >
             My Clubs
             {activeTab === 'my-clubs' && (
@@ -271,11 +266,10 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab('pending')}
-            className={`pb-3 px-2 font-medium transition-colors relative ${
-              activeTab === 'pending'
+            className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'pending'
                 ? 'text-primary'
                 : 'text-muted-text hover:text-foreground'
-            }`}
+              }`}
           >
             Pending Clubs
             {pendingClubs.length > 0 && (
@@ -328,13 +322,12 @@ export default function DashboardPage() {
                 <div className="relative h-40 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20">
                   <div className="absolute top-3 right-3">
                     <span
-                      className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${
-                        club.badge === 'ADMIN'
+                      className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${club.badge === 'ADMIN'
                           ? 'bg-red-500'
                           : club.badge === 'MEMBER'
-                          ? 'bg-green-500'
-                          : 'bg-blue-500'
-                      }`}
+                            ? 'bg-green-500'
+                            : 'bg-blue-500'
+                        }`}
                     >
                       {club.badge}
                     </span>
@@ -373,7 +366,7 @@ export default function DashboardPage() {
                       e.stopPropagation();
                       const isMember = myClubs.some(c => c.id === club.id);
                       const isPending = pendingClubs.some(c => c.id === club.id);
-                      
+
                       if (isMember) {
                         setSelectedClub(club);
                       } else if (isPending) {
@@ -384,15 +377,14 @@ export default function DashboardPage() {
                       }
                     }}
                     disabled={joiningClub === club.id}
-                    className={`w-full py-2 rounded-lg font-medium transition-colors ${
-                      joiningClub === club.id
+                    className={`w-full py-2 rounded-lg font-medium transition-colors ${joiningClub === club.id
                         ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
                         : myClubs.some(c => c.id === club.id)
-                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        : pendingClubs.some(c => c.id === club.id)
-                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 cursor-default'
-                        : 'bg-primary text-white hover:bg-primary/90'
-                    }`}
+                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          : pendingClubs.some(c => c.id === club.id)
+                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 cursor-default'
+                            : 'bg-primary text-white hover:bg-primary/90'
+                      }`}
                   >
                     {joiningClub === club.id ? 'Joining...' : myClubs.some(c => c.id === club.id) ? 'View Club' : pendingClubs.some(c => c.id === club.id) ? 'Pending' : 'Join Club'}
                   </button>
@@ -425,10 +417,9 @@ export default function DashboardPage() {
                 </button>
                 <div className="absolute bottom-6 left-6 z-10">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${
-                      selectedClub.badge === 'ADMIN' ? 'bg-red-500' :
-                      selectedClub.badge === 'MEMBER' ? 'bg-green-500' : 'bg-blue-500'
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-white text-xs font-semibold ${selectedClub.badge === 'ADMIN' ? 'bg-red-500' :
+                        selectedClub.badge === 'MEMBER' ? 'bg-green-500' : 'bg-blue-500'
+                      }`}>
                       {selectedClub.badge}
                     </span>
                   </div>
@@ -442,22 +433,42 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <PersonIcon className="w-6 h-6 mx-auto mb-2 text-primary" />
-                    <p className="text-2xl font-bold">{selectedClub.members || 0}</p>
+                    <p className="text-2xl font-bold">{selectedClub.memberCount || selectedClub._count?.members || 0}</p>
                     <p className="text-sm text-muted-text">Members</p>
                   </div>
                   <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-2xl font-bold">{selectedClub.activities || 0}</p>
+                    <p className="text-2xl font-bold">{selectedClub._count?.activities || 0}</p>
                     <p className="text-sm text-muted-text">Activities</p>
                   </div>
                   <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
-                    <p className="text-2xl font-bold">{selectedClub.resources || 0}</p>
+                    <p className="text-2xl font-bold">{selectedClub._count?.resources || 0}</p>
                     <p className="text-sm text-muted-text">Resources</p>
+                  </div>
+                </div>
+
+                {/* Club Info */}
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+                  <div>
+                    <p className="text-muted-text text-sm">Mentor</p>
+                    <p className="font-medium">{selectedClub.mentor?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-text text-sm">Founded</p>
+                    <p className="font-medium text-sm">
+                      {selectedClub.createdAt ? new Date(selectedClub.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-text text-sm">Coordinators</p>
+                    <p className="font-medium text-sm line-clamp-2" title={selectedClub.coordinators?.map((c: any) => c.user?.name).join(', ')}>
+                      {selectedClub.coordinators?.map((c: any) => c.user?.name).filter(Boolean).join(', ') || 'N/A'}
+                    </p>
                   </div>
                 </div>
 
@@ -507,11 +518,10 @@ export default function DashboardPage() {
                       }
                     }}
                     disabled={joiningClub === selectedClub.id}
-                    className={`flex-1 py-3 rounded-lg font-medium transition-colors ${
-                      joiningClub === selectedClub.id
+                    className={`flex-1 py-3 rounded-lg font-medium transition-colors ${joiningClub === selectedClub.id
                         ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
                         : 'bg-primary text-white hover:bg-primary/90'
-                    }`}
+                      }`}
                   >
                     {joiningClub === selectedClub.id ? 'Joining...' : myClubs.some(c => c.id === selectedClub.id) ? 'Go to Club' : 'Join Club'}
                   </button>

@@ -41,7 +41,7 @@ export default function ClubDetailPage({
             'Authorization': `Bearer ${token}`,
           },
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setClub(data);
@@ -160,21 +160,48 @@ export default function ClubDetailPage({
 
         <div className="flex justify-end mb-6 gap-3">
           {isUserMember && !isUserCoordinator && userRole !== 'FACULTY' && userRole !== 'ADMIN' && (
-            <button 
+            <button
               onClick={() => setShowCoordinatorModal(true)}
               className="btn btn-outline"
             >
               🎖️ Apply as Coordinator
             </button>
           )}
-          <button className="btn btn-primary">Join Club</button>
+          <button
+            className="btn btn-primary"
+            style={{ display: isUserMember ? 'none' : 'block' }}
+          >
+            Join Club
+          </button>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-4 pt-6 border-t border-border">
-          <div>
-            <p className="text-muted-text text-sm">Members</p>
-            <p className="text-2xl font-bold">{club.memberCount || club._count?.members || 0}</p>
+        <div className="grid md:grid-cols-3 gap-6 pt-6 border-t border-border">
+          <div className="bg-card p-6 rounded-xl border border-border shadow-sm text-center">
+            <div className="text-primary mb-2 flex justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </div>
+            <p className="text-4xl font-bold mb-1">{club.memberCount || club._count?.members || 0}</p>
+            <p className="text-muted-text text-sm uppercase tracking-wider font-medium">Members</p>
           </div>
+
+          <div className="bg-card p-6 rounded-xl border border-border shadow-sm text-center">
+            <div className="text-primary mb-2 flex justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            </div>
+            <p className="text-4xl font-bold mb-1">{club._count?.activities || 0}</p>
+            <p className="text-muted-text text-sm uppercase tracking-wider font-medium">Activities</p>
+          </div>
+
+          <div className="bg-card p-6 rounded-xl border border-border shadow-sm text-center">
+            <div className="text-primary mb-2 flex justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+            </div>
+            <p className="text-4xl font-bold mb-1">{club._count?.resources || 0}</p>
+            <p className="text-muted-text text-sm uppercase tracking-wider font-medium">Resources</p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4 pt-6 mt-6 border-t border-border">
           <div>
             <p className="text-muted-text text-sm">Mentor</p>
             <p className="text-lg font-medium">{club.mentor?.name || 'N/A'}</p>
@@ -200,11 +227,10 @@ export default function ClubDetailPage({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`pb-4 px-2 font-medium transition-colors border-b-2 ${
-              activeTab === tab.id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-text hover:text-foreground'
-            }`}
+            className={`pb-4 px-2 font-medium transition-colors border-b-2 ${activeTab === tab.id
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-text hover:text-foreground'
+              }`}
           >
             {tab.label}
           </button>
@@ -360,7 +386,7 @@ export default function ClubDetailPage({
           </div>
         </div>
       )}
-      
+
       {/* Coordinator Application Modal */}
       {showCoordinatorModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -369,7 +395,7 @@ export default function ClubDetailPage({
             <p className="text-muted-text text-sm mb-4">
               Tell us why you want to be a coordinator for <span className="font-semibold text-foreground">{club.name}</span>
             </p>
-            
+
             <textarea
               value={coordinatorReason}
               onChange={(e) => setCoordinatorReason(e.target.value)}
@@ -377,7 +403,7 @@ export default function ClubDetailPage({
               className="input h-32 mb-4 resize-none"
               disabled={applyingCoordinator}
             />
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
