@@ -230,7 +230,22 @@ export class ClubsService {
             user: true,
           },
         },
-        members: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                department: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: {
+            joinedAt: 'desc',
+          },
+        },
         activities: {
           orderBy: {
             startDate: 'desc',

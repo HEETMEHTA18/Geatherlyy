@@ -104,7 +104,7 @@ export class UsersService {
   }
 
   async getUserStats(userId: number): Promise<any> {
-    const [joinedClubs, quizAttempts, totalScore] = await Promise.all([
+    const [clubsJoined, quizzesCompleted, quizData] = await Promise.all([
       this.prisma.clubMember.count({
         where: { userId },
       }),
@@ -113,16 +113,16 @@ export class UsersService {
       }),
       this.prisma.quizAttempt.aggregate({
         where: { userId },
-        _sum: {
-          score: true,
+        _avg: {
+          percentage: true,
         },
       }),
     ]);
 
     return {
-      joinedClubs,
-      quizAttempts,
-      totalScore: totalScore._sum.score || 0,
+      clubsJoined,
+      quizzesCompleted,
+      averageScore: Math.round(quizData._avg.percentage || 0),
     };
   }
 }

@@ -23,6 +23,7 @@ export default function ClubDetailPage({
   const [loadingResources, setLoadingResources] = useState(false);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [loadingActivities, setLoadingActivities] = useState(false);
+  const [joiningClub, setJoiningClub] = useState(false);
 
   useEffect(() => {
     // Get current user ID and role from token
@@ -136,6 +137,43 @@ export default function ClubDetailPage({
     }
   }, [activeTab, club, params.id]);
 
+  const handleJoinClub = async () => {
+    setJoiningClub(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/clubs/${params.id}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Refresh club data to update membership status
+        const clubResponse = await fetch(`http://localhost:5000/api/clubs/${params.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        if (clubResponse.ok) {
+          const data = await clubResponse.json();
+          setClub(data);
+        }
+        
+        alert('Successfully joined the club!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to join club');
+      }
+    } catch (error) {
+      console.error('Error joining club:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setJoiningClub(false);
+    }
+  };
+
   const handleApplyAsCoordinator = async () => {
     if (!coordinatorReason.trim()) {
       alert('Please provide a reason for your application');
@@ -245,7 +283,15 @@ export default function ClubDetailPage({
               🎖️ Apply as Coordinator
             </button>
           )}
-          <button className="btn btn-primary">Join Club</button>
+          {!isUserMember && (
+            <button 
+              onClick={handleJoinClub}
+              disabled={joiningClub}
+              className="btn btn-primary"
+            >
+              {joiningClub ? 'Joining...' : 'Join Club'}
+            </button>
+          )}
         </div>
 
         <div className="grid md:grid-cols-4 gap-4 pt-6 border-t border-border">
